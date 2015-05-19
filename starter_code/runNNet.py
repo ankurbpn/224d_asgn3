@@ -127,6 +127,7 @@ def run(args=None):
         # Plot train/dev_accuracies here?
 	epoch = np.asarray(range(len(train_accuracies)))
 	plt.figure()
+	plt.title("Training and dev accuracies")
 	plt.plot(epoch, train_accuracies, 'r')
 	plt.plot(epoch, dev_accuracies, 'b')
 	plt.show()
@@ -208,7 +209,7 @@ def makeconf(conf_arr):
     plt.xticks(range(width), indexs[:width])
     plt.yticks(range(height), indexs[:height])
     # you can save the figure here with:
-    plt.savefig("pathname/image.png")
+    plt.savefig("conf_matrix" + str(np.sum(conf_arr)) + ".png")
 
     #plt.show()
 
