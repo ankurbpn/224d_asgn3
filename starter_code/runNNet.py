@@ -93,6 +93,7 @@ def run(args=None):
     sgd = optimizer.SGD(nn,alpha=opts.step,minibatch=opts.minibatch,
         optimizer=opts.optimizer)
 
+
     dev_trees = tr.loadTrees("dev")
     for e in range(opts.epochs):
         start = time.time()
@@ -124,11 +125,10 @@ def run(args=None):
         print dev_accuracies
         # TODO:
         # Plot train/dev_accuracies here?
+	epoch = np.asarray(range(len(train_accuracies)))
 	plt.figure()
-	plt.title('Training and dev error vs epoch')
-	epochs = np.asarray(range(len(train_accuracies))) + 1
-	plt.plot(epochs, train_accuracies, 'r')
-	plt.plot(epochs, dev_accuracies, 'b')
+	plt.plot(epoch, train_accuracies, 'r')
+	plt.plot(epoch, dev_accuracies, 'b')
 	plt.show()
 
 def test(netFile,dataSet, model='RNN', trees=None):
@@ -166,11 +166,11 @@ def test(netFile,dataSet, model='RNN', trees=None):
     
     # TODO
     # Plot the confusion matrix?
-
     conf_arr = np.zeros((5, 5))
     for i in range(len(correct)):
 	conf_arr[correct[i], guess[i]] += 1
-    #makeconf(conf_arr)
+    makeconf(conf_arr)
+    
     
     print "Cost %f, Acc %f"%(cost,correct_sum/float(total))
     return correct_sum/float(total)
@@ -208,8 +208,7 @@ def makeconf(conf_arr):
     plt.xticks(range(width), indexs[:width])
     plt.yticks(range(height), indexs[:height])
     # you can save the figure here with:
-    # Hack to save figure just once for training and dev sets
-    plt.savefig("confusion_matrix" + str(np.sum(conf_arr)) + ".png")
+    plt.savefig("pathname/image.png")
 
     #plt.show()
 
