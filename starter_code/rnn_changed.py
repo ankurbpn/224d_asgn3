@@ -18,7 +18,37 @@ class RNN3:
     def initParams(self):
         np.random.seed(12341)
 
+        # Word vectors
+        self.L = 0.01*np.random.randn(self.wvecDim,self.numWords)
 
+        # Hidden activation weights for layer 1
+        self.W1 = 0.01*np.random.randn(self.wvecDim,2*self.wvecDim)
+        self.b1 = np.zeros((self.wvecDim))
+
+        # Hidden activation weights for layer 2
+        self.W2 = 0.01*np.random.randn(self.middleDim,self.wvecDim)
+        self.b2 = np.zeros((self.middleDim))
+
+        # Softmax weights
+        self.Ws = 0.01*np.random.randn(self.outputDim,self.middleDim) # note this is " U " in the notes and the handout.. there is a reason for the change in notation
+        self.bs = np.zeros((self.outputDim))
+	
+	self.Ws_nl =  0.01*np.random.randn(self.outputDim,self.middleDim)
+	self.bs_nl = np.zeros((self.outputDim))
+
+        self.stack = [self.L, self.W1, self.b1, self.W2, self.b2, self.Ws, self.bs, self.Ws_nl, self.bs_nl]
+
+        # Gradients
+        self.dW1 = np.empty(self.W1.shape)
+        self.db1 = np.empty((self.wvecDim))
+        
+        self.dW2 = np.empty(self.W2.shape)
+        self.db2 = np.empty((self.middleDim))
+
+        self.dWs = np.empty(self.Ws.shape)
+        self.dbs = np.empty((self.outputDim))
+        self.dWs_nl = np.empty(self.Ws_nl.shape)
+        self.dbs_nl = np.empty((self.outputDim))
 
     def costAndGrad(self,mbdata,test=False): 
         """
@@ -39,7 +69,7 @@ class RNN3:
         guess = []
         total = 0.0
 
-        self.L, self.W1, self.b1, self.W2, self.b2, self.Ws, self.bs = self.stack
+        self.L, self.W1, self.b1, self.W2, self.b2, self.Ws, self.bs, self.Ws_nl, self.bs_nl = self.stack
         # Zero gradients
         self.dW1[:] = 0
         self.db1[:] = 0
@@ -50,6 +80,8 @@ class RNN3:
         self.dWs[:] = 0
         self.dbs[:] = 0
         self.dL = collections.defaultdict(self.defaultVec)
+        self.dWs_nl[:] = 0
+        self.dbs_nl[:] = 0
 
         # Forward prop each tree in minibatch
         for tree in mbdata: 
@@ -73,21 +105,91 @@ class RNN3:
         cost += (self.rho/2)*np.sum(self.W1**2)
         cost += (self.rho/2)*np.sum(self.W2**2)
         cost += (self.rho/2)*np.sum(self.Ws**2)
+	cost += (self.rho/2)*np.sum(self.Ws_nl**2)
 
         return scale*cost,[self.dL,scale*(self.dW1 + self.rho*self.W1),scale*self.db1,
                                    scale*(self.dW2 + self.rho*self.W2),scale*self.db2,
-                                   scale*(self.dWs+self.rho*self.Ws),scale*self.dbs]
+                                   scale*(self.dWs+self.rho*self.Ws),scale*self.dbs,
+				   scale*(self.dWs_nl + self.rho*self.Ws_nl),scale*self.dbs_nl]
 
 
     def forwardProp(self,node, correct=[], guess=[]):
         cost  =  total = 0.0
-        return cost, total + 1
+        # this is exactly the same setup as forwardProp in rnn.py
+        if node.isLeaf:
+		node.hActs1 = self.L[:, node.word]
+		#node.hActs1[node.hActs1<0] = 0
+		node.hActs2 =  np.dot(self.W2, node.hActs1) + self.b2
+		node.hActs2[node.hActs2 <0] = 0
+		node.probs = np.dot(self.Ws, node.hActs2) + self.bs
+		node.probs = np.exp(node.probs - np.max(node.probs))
+		node.probs = node.probs/np.sum(node.probs)
+		#correct.append(node.label)
+		#guess.append(np.argmax(node.probs))
+		cost = -np.log(node.probs[node.label])
+		total -= 1
+        else:
+		retl = self.forwardProp(node.left, correct, guess)
+		retr = self.forwardProp(node.right, correct, guess)
+		cost = retl[0] + retr[0]
+		total = retl[1] + retr[1]
+		node.hActs1 = np.dot(self.W1, np.concatenate((node.left.hActs1, node.right.hActs1))) + self.b1
+		node.hActs1[node.hActs1 <0] = 0
+		node.hActs2 =  np.dot(self.W2, node.hActs1) + self.b2
+		node.hActs2[node.hActs2 <0] = 0
+		node.probs = np.dot(self.Ws_nl, node.hActs2) + self.bs_nl
+		node.probs = np.exp(node.probs - np.max(node.probs))
+		node.probs = node.probs/np.sum(node.probs)
+		correct.append(node.label)
+		guess.append(np.argmax(node.probs))
+		cost += -np.log(node.probs[node.label])
+	return cost, total + 1
 
     def backProp(self,node,error=None):
 
-        # Clear nodes
-        node.fprop = False
+        # this is exactly the same setup as backProp in rnn.py
+	if node.isLeaf:
+		del0 = node.probs
+		del0[node.label] -= 1
+		self.dWs += np.outer(del0, node.hActs2)
+		self.dbs += del0
+		del1 = np.dot(np.transpose(self.Ws), del0)
+		sgns = np.zeros(del1.shape)
+		sgns[node.hActs2 > 0] = 1
+		del1 = np.multiply(del1, sgns)
+		self.db2 += del1
+		self.dW2 += np.outer(del1, node.hActs1)
+		del2 = np.dot(np.transpose(self.W2), del1)
 
+		if error is not None:
+			del2 += error
+		#sgns = np.zeros(del1.shape)
+		#sgns[node.hActs1 > 0] = 1
+		self.dL[node.word] += del2
+
+	else:
+		del0 = node.probs
+		del0[node.label] -= 1
+		self.dWs_nl += np.outer(del0, node.hActs2)
+		self.dbs_nl += del0
+		del1 = np.dot(np.transpose(self.Ws_nl), del0)
+		sgns = np.zeros(del1.shape)
+		sgns[node.hActs2 > 0] = 1
+		del1 = np.multiply(del1, sgns)
+		self.db2 += del1
+		self.dW2 += np.outer(del1, node.hActs1)
+		del2 = np.dot(np.transpose(self.W2), del1)
+
+		if error is not None:
+			del2 += error
+		sgns = np.zeros(del2.shape)
+		sgns[node.hActs1 > 0] = 1
+		del2 = np.multiply(del2, sgns)
+		self.db1 += del2
+		self.dW1 += np.outer(del2, np.concatenate((node.left.hActs1, node.right.hActs1)))
+		delbelow = np.dot(np.transpose(self.W1), del2)
+		self.backProp(node.left, delbelow[:self.wvecDim])
+		self.backProp(node.right, delbelow[self.wvecDim:])
         
     def updateParams(self,scale,update,log=False):
         """
@@ -117,7 +219,7 @@ class RNN3:
         import cPickle as pickle
         self.stack = pickle.load(fid)
 
-    def check_grad(self,data,epsilon=1e-6):
+    def check_grad(self,data,epsilon=1e-8):
 
         cost, grad = self.costAndGrad(data)
 
@@ -136,6 +238,7 @@ class RNN3:
                     err = np.abs(dW[i,j] - numGrad)
                     err1+=err
                     count+=1
+	    #print dW.shape, err1
         if 0.001 > err1/count:
             print "Grad Check Passed for dW"
         else:

@@ -13,7 +13,7 @@ import pdb
 
 class RNN2:
 
-    def __init__(self,wvecDim, middleDim, outputDim,numWords,mbSize=30,rho=1e-4):
+    def __init__(self,wvecDim, middleDim, outputDim,numWords,mbSize=30,rho=5e-4):
         self.wvecDim = wvecDim
         self.outputDim = outputDim
         self.middleDim = middleDim
@@ -21,6 +21,9 @@ class RNN2:
         self.mbSize = mbSize
         self.defaultVec = lambda : np.zeros((wvecDim,))
         self.rho = rho
+	self.implementDropout = True
+	self.p = 1.0
+
 
     def initParams(self):
         np.random.seed(12341)
@@ -39,6 +42,9 @@ class RNN2:
         # Softmax weights
         self.Ws = 0.01*np.random.randn(self.outputDim,self.middleDim) # note this is " U " in the notes and the handout.. there is a reason for the change in notation
         self.bs = np.zeros((self.outputDim))
+	
+	if self.implementDropout:
+		self.p = 0.5
 
         self.stack = [self.L, self.W1, self.b1, self.W2, self.b2, self.Ws, self.bs]
 
@@ -51,6 +57,7 @@ class RNN2:
 
         self.dWs = np.empty(self.Ws.shape)
         self.dbs = np.empty((self.outputDim))
+
 
     def costAndGrad(self,mbdata,test=False): 
         """
@@ -83,12 +90,13 @@ class RNN2:
         self.dbs[:] = 0
         self.dL = collections.defaultdict(self.defaultVec)
 
+
         # Forward prop each tree in minibatch
         for tree in mbdata: 
-            c,tot = self.forwardProp(tree.root,correct,guess)
+            c,tot = self.forwardProp(tree.root,correct,guess, test)
             cost += c
             total += tot
-            
+	   
         if test:
             return (1./len(mbdata))*cost,correct, guess, total
 
@@ -110,13 +118,21 @@ class RNN2:
                                    scale*(self.dW2 + self.rho*self.W2),scale*self.db2,
                                    scale*(self.dWs+self.rho*self.Ws),scale*self.dbs]
 
-    def forwardProp(self,node, correct=[], guess=[]):
+    def forwardProp(self,node, correct=[], guess=[], test = False):
         cost  =  total = 0.0
         # this is exactly the same setup as forwardProp in rnn.py
         if node.isLeaf:
 		node.hActs1 = self.L[:, node.word]
 		#node.hActs1[node.hActs1<0] = 0
 		node.hActs2 =  np.dot(self.W2, node.hActs1) + self.b2
+
+		if self.implementDropout and not test:
+			mask = np.random.binomial(1,self.p, node.hActs2.shape)
+			node.hActs2 = np.multiply(mask, node.hActs2)
+			
+		if self.implementDropout and test:
+			node.hActs2 = self.p*node.hActs2
+
 		node.hActs2[node.hActs2 <0] = 0
 		node.probs = np.dot(self.Ws, node.hActs2) + self.bs
 		node.probs = np.exp(node.probs - np.max(node.probs))
@@ -124,17 +140,26 @@ class RNN2:
 		correct.append(node.label)
 		guess.append(np.argmax(node.probs))
 		cost = -np.log(node.probs[node.label])
-
+		#total -= 1
         else:
-		retl = self.forwardProp(node.left, correct, guess)
-		retr = self.forwardProp(node.right, correct, guess)
+		retl = self.forwardProp(node.left, correct, guess, test)
+		retr = self.forwardProp(node.right, correct, guess, test)
 		cost = retl[0] + retr[0]
 		total = retl[1] + retr[1]
 		node.hActs1 = np.dot(self.W1, np.concatenate((node.left.hActs1, node.right.hActs1))) + self.b1
 		node.hActs1[node.hActs1 <0] = 0
 		node.hActs2 =  np.dot(self.W2, node.hActs1) + self.b2
+		
+		if self.implementDropout and not test:
+			mask = np.random.binomial(1,self.p, node.hActs2.shape)
+			node.hActs2 = np.multiply(mask, node.hActs2)
+
+		if self.implementDropout and test:
+			node.hActs2 = self.p*node.hActs2
+
 		node.hActs2[node.hActs2 <0] = 0
 		node.probs = np.dot(self.Ws, node.hActs2) + self.bs
+
 		node.probs = np.exp(node.probs - np.max(node.probs))
 		node.probs = node.probs/np.sum(node.probs)
 		correct.append(node.label)
