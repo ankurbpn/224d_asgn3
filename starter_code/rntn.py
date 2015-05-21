@@ -2,19 +2,27 @@ import numpy as np
 import collections
 np.seterr(over='raise',under='raise')
 
+def tanh(x):
+	return (2/(1 + np.exp(-2*x))) - np.ones(x.shape)
+
 class RNTN:
 
-    def __init__(self,wvecDim,outputDim,numWords,mbSize=30,rho=1e-6):
+    def __init__(self,wvecDim,outputDim,numWords,mbSize=30,rho=1e-4):
         self.wvecDim = wvecDim
         self.outputDim = outputDim
         self.numWords = numWords
         self.mbSize = mbSize
         self.defaultVec = lambda : np.zeros((wvecDim,))
         self.rho = rho
+	self.p = 1.0
+	self.implementDropout = True
 
     def initParams(self):
         np.random.seed(12341)
         
+	if self.implementDropout:
+		self.p = 0.5
+
         # Word vectors
         self.L = 0.01*np.random.randn(self.wvecDim,self.numWords)
 
@@ -41,14 +49,90 @@ class RNTN:
         correct = []
         guess = []
         total = 0.0
+	
+	self.L, self.V, self.W, self.b, self.Ws, self.bs = self.stack
+        # Zero gradients
+        self.dV[:] = 0
+        self.dW[:] = 0
+        self.db[:] = 0
 
-        return cost, []
+        self.dWs[:] = 0
+        self.dbs[:] = 0
+        self.dL = collections.defaultdict(self.defaultVec)
 
-    def forwardProp(self,node):
-        cost = total = 0.0
 
+        # Forward prop each tree in minibatch
+        for tree in mbdata: 
+            c,tot = self.forwardProp(tree.root,correct,guess, test)
+            cost += c
+            total += tot
+	   
+        if test:
+            return (1./len(mbdata))*cost,correct, guess, total
+
+        # Back prop each tree in minibatch
+        for tree in mbdata:
+            self.backProp(tree.root)
+
+        # scale cost and grad by mb size
+        scale = (1./self.mbSize)
+        for v in self.dL.itervalues():
+            v *=scale
         
+        # Add L2 Regularization 
+        cost += (self.rho/2)*np.sum(self.V**2)
+        cost += (self.rho/2)*np.sum(self.W**2)
+        cost += (self.rho/2)*np.sum(self.Ws**2)
 
+        return scale*cost,[self.dL,scale*(self.dV + self.rho*self.V),
+                                   scale*(self.dW + self.rho*self.W),scale*self.db,
+                                   scale*(self.dWs+self.rho*self.Ws),scale*self.dbs]
+
+
+    def forwardProp(self,node, correct = [], guess= [], test = False):
+        cost = total = 0.0
+	if node.isLeaf:
+		node.hActs1 = self.L[:, node.word]
+		#node.hActs1[node.hActs1<0] = 0
+
+		if self.implementDropout and not test:
+			#We use node.hActs2 to store the mask
+			node.hActs2 = np.random.binomial(1,self.p, node.hActs1.shape)
+			node.hActs1 = np.multiply(node.hActs2, node.hActs1)
+			
+		if self.implementDropout and test:
+			node.hActs1 = self.p*node.hActs1
+
+		node.probs = np.dot(self.Ws, node.hActs1) + self.bs
+		node.probs = np.exp(node.probs - np.max(node.probs))
+		node.probs = node.probs/np.sum(node.probs)
+		correct.append(node.label)
+		guess.append(np.argmax(node.probs))
+		cost = -np.log(node.probs[node.label])
+		#total -= 1
+        else:
+		retl = self.forwardProp(node.left, correct, guess, test)
+		retr = self.forwardProp(node.right, correct, guess, test)
+		cost = retl[0] + retr[0]
+		total = retl[1] + retr[1]
+		node.hActs1 = np.dot(self.W, np.concatenate((node.left.hActs1, node.right.hActs1))) + self.b + np.dot(np.dot(self.V, np.concatenate((node.left.hActs1, node.right.hActs1))),np.concatenate((node.left.hActs1, node.right.hActs1)))
+
+		if self.implementDropout and not test:
+			node.hActs2 = np.random.binomial(1,self.p, node.hActs1.shape)
+			node.hActs1 = np.multiply(node.hActs1, node.hActs2)
+
+		if self.implementDropout and test:
+			node.hActs1 = self.p*node.hActs1
+
+		node.hActs1 = tanh(node.hActs1)
+		node.probs = np.dot(self.Ws, node.hActs1) + self.bs
+
+		node.probs = np.exp(node.probs - np.max(node.probs))
+		node.probs = node.probs/np.sum(node.probs)
+		correct.append(node.label)
+		guess.append(np.argmax(node.probs))
+		cost += -np.log(node.probs[node.label])
+        
         return cost,total + 1
 
 
@@ -56,7 +140,34 @@ class RNTN:
 
         # Clear nodes
         node.fprop = False
+	#this is exactly the same setup as backProp in rnn.py
+        del0 = node.probs
+	del0[node.label] -= 1
+	self.dWs += np.outer(del0, node.hActs1)
+	self.dbs += del0
+	del1 = np.dot(np.transpose(self.Ws), del0)
 
+	if error is not None:
+		del1 += error
+
+	if self.implementDropout:
+		del1 = np.multiply(del1, node.hActs2)
+
+	if node.isLeaf:
+		#sgns = np.zeros(del1.shape)
+		#sgns[node.hActs1 > 0] = 1
+		self.dL[node.word] += del1
+
+	else:
+		del1 = np.multiply(del1, np.ones(node.hActs1.shape) - node.hActs1**2)
+		self.db += del1
+		hActschild = np.concatenate((node.left.hActs1, node.right.hActs1))
+		self.dW += np.outer(del1, hActschild)
+		vs = (del1, hActschild, hActschild)
+		self.dV += reduce(np.multiply, np.ix_(*vs))
+		delbelow = np.dot(np.transpose(self.W), del1) + np.dot(np.dot(np.transpose(self.V), del1), hActschild)
+		self.backProp(node.left, delbelow[:self.wvecDim])
+		self.backProp(node.right, delbelow[self.wvecDim:])
         
     def updateParams(self,scale,update,log=False):
         """

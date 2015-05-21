@@ -7,14 +7,14 @@ set -x
 ###################
 
 # training params
-epochs=15
-step=2e-1
+epochs=20
+step=1e-1
 wvecDim=30
 
 # for RNN2 only, otherwise doesnt matter
-middleDim=100
+middleDim=30
 
-model="RNN2" #either RNN, RNN2, RNN3, RNTN, or DCNN
+model="RNTN" #either RNN, RNN2, RNN3, RNTN, or DCNN
 
 
 ######################################################## 

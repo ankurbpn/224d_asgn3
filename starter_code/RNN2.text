@@ -1,15 +1,47 @@
-Best epoch = 7,0.805558906555359 for stepsize = 5e-2
-Mid dimension, dev accuracy
+Without dropout
+Best epoch = 7,0.805558906555359
+Mid dimension, dev accuracy, wvdim = 30, stepsize = 5e-2
 5,0.8025912611286703
 15,0.7912756049895046
 25,0.806523994498998
 30,0.805558906555359
 35,0.80753733683981954
 45,0.80980529350737085
-55,0.8019639539653050
+55,0.8079639539653050
 65,0.80514874417931337
 
-With dropout
-Best epoch = 6, for stepsize = 1e-1, middleDim = 60, rho = 1e-6, 0.812339
+epoch = 5, step = 5e-2, middleDim = 45, wvdim = 45 rho = 5e-4, 0.81231452216083189
+epoch = 4, step = 5e-2, middleDim = 60, wvdim = 45 rho = 5e-4, 0.81311071971433402
+epoch = 4, step = 5e-2, middleDim = 60, wvdim = 60 rho = 5e-4, 0.81354500928897144
+epoch = 4, step = 5e-2, middleDim = 75, wvdim = 60 rho = 5e-4, 0.81332786450165273
 
+With dropout
+epoch = 6, step = 1e-1, middleDim = 60, wvdim = 30, rho = 1e-6, 0.812339
+epoch = 6, step = 2e-1, middleDim = 120, wvdim = 30, rho = 5e-5, 0.80729606485390981
+epoch = 5, step = 2e-1, middleDim = 100, wvdim = 30, rho = 5e-6, 0.80934687673414241
+epoch = 6, step = 2e-1, middleDim = 100, wvdim = 30, rho = 5e-4, 0.80884020556373204
+epoch = 3, step = 2e-1, middleDim = 100, wvdim = 30, rho = 5e-5, 0.81040847347214517
+epoch = 5, step = 2e-1, middleDim = 120, wvdim = 30, rho = 5e-4, 0.80886433276232295
+epoch = 5, step = 2e-1, middleDim = 40, wvdim = 30, rho = 5e-6, 0.81077038145100977
+epoch = 5, step = 2e-1, middleDim = 40, wvdim = 30, rho = 5e-7, 0.81077038145100977
+epoch = 6, step = 2e-1, middleDim = 60, wvdim = 30, rho = 5e-5, 0.80727193765531879
+epoch = 6, step = 2e-1, middleDim = 120, wvdim = 30, rho = 5e-6, 0.80789924481868414
+epoch = 6, step = 2e-1, middleDim = 80, wvdim = 30, rho = 5e-6, 0.81255579414674162
+epoch = 5, step = 1e-1, middleDim = 80, wvdim = 30, rho = 5e-5, 0.81255579414674162
+epoch = 5, step = 5e-2, middledim = 80, wvec = 40, rho = 5e-4, 0.81147007021014794
+epoch = 5, step = 5e-2, middledim = 80, wvec = 40, rho = 5e-5, 0.81147007021014794
+epoch = 4, step = 5e-2, middledim = 90, wvec = 45, rho = 5e-5, 0.81335199170024364
+epoch = 4, step = 5e-2, middledim = 90, wvec = 45, rho = 5e-4, 0.81335199170024364
+epoch = 4, step = 5e-2, middledim = 120, wvec = 60, rho = 5e-4, 0.81581296595652275
+epoch = 4, step = 5e-2, middledim = 120, wvec = 60, rho = 5e-5, 0.81221801336646804
+epoch = 4, step = 5e-2, middledim = 90, wvec = 60, rho = 5e-5, 0.81395517166501796
+
+For larger regularization and wordvector sizes we encountered under flow and overflow errors and decided not to pursue further tuning.
+Best performance without dropout was
+epoch = 4, step = 5e-2, middleDim = 60, wvdim = 60 rho = 5e-4, 0.81354500928897144
+
+Best performance with dropout was 
+epoch = 4, step = 5e-2, middledim = 120, wvec = 60, rho = 5e-4, 0.81581296595652275
+
+We observe that dropout produces gains of around 0.25% for our model.
 
