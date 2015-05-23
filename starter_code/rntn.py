@@ -92,6 +92,7 @@ class RNTN:
     def forwardProp(self,node, correct = [], guess= [], test = False):
         cost = total = 0.0
 	if node.isLeaf:
+		self.L[:, node.word] = self.L[:, node.word]/np.sqrt(np.sum(self.L[:, node.word]**2))
 		node.hActs1 = self.L[:, node.word]
 		#node.hActs1[node.hActs1<0] = 0
 
