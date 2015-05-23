@@ -15,7 +15,7 @@ class RNTN:
         self.defaultVec = lambda : np.zeros((wvecDim,))
         self.rho = rho
 	self.p = 1.0
-	self.implementDropout = True
+	self.implementDropout = False
 
     def initParams(self):
         np.random.seed(12341)
@@ -83,7 +83,7 @@ class RNTN:
         cost += (self.rho/2)*np.sum(self.V**2)
         cost += (self.rho/2)*np.sum(self.W**2)
         cost += (self.rho/2)*np.sum(self.Ws**2)
-
+	print self.implementDropout
         return scale*cost,[self.dL,scale*(self.dV + self.rho*self.V),
                                    scale*(self.dW + self.rho*self.W),scale*self.db,
                                    scale*(self.dWs+self.rho*self.Ws),scale*self.dbs]

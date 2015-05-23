@@ -22,6 +22,7 @@ import pdb
 
 # TODO:
 # Create your plots here
+DROPOUT_AFTER = 50
 def run(args=None):
     usage = "usage : %prog [options]"
     parser = optparse.OptionParser(usage=usage)
@@ -99,6 +100,9 @@ def run(args=None):
         print "Running epoch %d"%e
         sgd.run(trees)
         end = time.time()
+	if opts.model=='RNTN':
+		if e==DROPOUT_AFTER - 1:
+			nn.implementDropout = True
         print "Time per epoch : %f"%(end-start)
         with open(opts.outFile,'w') as fid:
             pickle.dump(opts,fid)
