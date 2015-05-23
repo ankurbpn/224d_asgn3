@@ -22,7 +22,6 @@ import pdb
 
 # TODO:
 # Create your plots here
-
 def run(args=None):
     usage = "usage : %prog [options]"
     parser = optparse.OptionParser(usage=usage)
@@ -101,7 +100,6 @@ def run(args=None):
         sgd.run(trees)
         end = time.time()
         print "Time per epoch : %f"%(end-start)
-
         with open(opts.outFile,'w') as fid:
             pickle.dump(opts,fid)
             pickle.dump(sgd.costt,fid)

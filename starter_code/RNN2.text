@@ -35,6 +35,7 @@ epoch = 4, step = 5e-2, middledim = 90, wvec = 45, rho = 5e-4, 0.813351991700243
 epoch = 4, step = 5e-2, middledim = 120, wvec = 60, rho = 5e-4, 0.81581296595652275
 epoch = 4, step = 5e-2, middledim = 120, wvec = 60, rho = 5e-5, 0.81221801336646804
 epoch = 4, step = 5e-2, middledim = 90, wvec = 60, rho = 5e-5, 0.81395517166501796
+epoch = 4, step = 5e-2, middledim = 90, wvec = 60, rho = 5e-4, 0.81443771563683742
 
 For larger regularization and wordvector sizes we encountered under flow and overflow errors and decided not to pursue further tuning.
 Best performance without dropout was
